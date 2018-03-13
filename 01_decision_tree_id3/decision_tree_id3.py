@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from math import log2
 
-
+"""
 # 统计数据最后1列(属性/类别)出现次数
 # 返回结果为字典
 def datacount(dataset):
@@ -161,9 +161,7 @@ def classify(observation, tree):
             else:
                 branch = tree.fb
         return classify(observation, branch)
-
-
-
+"""
 
 
 """
@@ -195,38 +193,34 @@ printtree(tree)
 """
 
 
-def load_data(filename):
-    '''
-    输入：文件
-    输出：csv数据集
-    '''
-    dataset = pd.read_csv("dataset.csv")
+# 读取样本数据,最后1列为类别
+def load_data(file):
+    dataset = pd.read_csv(file)
+
     return dataset
 
 
-def calcShannonEnt(dataset):
-    '''
-    输入：数据集
-    输出：数据集的香农熵
-    描述：计算给定数据集的香农熵
-    '''
-    numEntries = dataset.shape[0]
-    labelCounts = {}
-    cols = dataset.columns.tolist()
-    classlabel = dataset[cols[-1]].tolist()
-    for currentlabel in classlabel:
-        if currentlabel not in labelCounts.keys():
-            labelCounts[currentlabel] = 1
+# 计算样本集信息熵
+def calc_entropy(dataset):
+    num_set = dataset.shape[0]
+    num_labels = {}
+    ncols = dataset.columns.tolist()
+    label = dataset[ncols[-1]].tolist()
+
+    # 计算类别个数
+    for item in label:
+        if item not in num_labels.keys():
+            num_labels[item] = 1
         else:
-            labelCounts[currentlabel] += 1
+            num_labels[item] += 1
 
-    ShannonEnt = 0.0
+    # 计算信息熵
+    info_ent = 0.0
+    for key in num_labels:
+        prob = num_labels[key]/num_set
+        info_ent -= prob*log2(prob)
 
-    for key in labelCounts:
-        prob = labelCounts[key] / numEntries
-        ShannonEnt -= prob * log(prob, 2)
-
-    return ShannonEnt
+    return info_ent
 
 
 def splitDataSet(dataset, axis, value):
@@ -251,25 +245,21 @@ def splitDataSet(dataset, axis, value):
     return newDataSet.reset_index(drop=True)
 
 
-def chooseBestFeatureToSplit(dataset):
-    '''
-    输入：数据集
-    输出：最好的划分特征
-    描述：选择最好的数据集划分维度
-    '''
-    numFeatures = dataset.shape[1] - 1
-    ShannonEnt = calcShannonEnt(dataset)
+# 计算样本集每个特征的信息增益
+def gen_info_gain(dataset):
+    attr_num = dataset.shape[1] - 1
+    info_ent = calc_entropy(dataset)
     bestInfoGain = 0.0
     bestFeature = -1
     cols = dataset.columns.tolist()
-    for i in range(numFeatures):
+    for i in range(attr_num):
         equalVals = set(dataset[cols[i]].tolist())
         newEntropy = 0.0
         for value in equalVals:
             subDataSet = splitDataSet(dataset, cols[i], value)
             prob = subDataSet.shape[0] / dataset.shape[0]
             newEntropy += prob * calcShannonEnt(subDataSet)
-        infoGain = ShannonEnt - newEntropy
+        infoGain = info_ent - newEntropy
         print(cols[i], infoGain)
         if infoGain > bestInfoGain:
             bestInfoGain = infoGain
@@ -293,26 +283,24 @@ def majorityCnt(classList):
     return sortedClassCount[0][0]
 
 
-def createTree(dataset, dropCol):
-    '''
-    输入：数据集，删除特征
-    输出：决策树
-    描述：递归构建决策树，利用上述的函数
-    '''
-    cols = dataset.columns.tolist()[:-1]
-    classList = dataset[dataset.columns.tolist()[-1]].tolist()
+# 以递归方式生成id3_tree
+def gen_id3_tree(dataset, dropcol):
+    data_attrs = dataset.columns.tolist()[:-1]                      # 样本特征集合
+    data_label = dataset[dataset.columns.tolist()[-1]].tolist()     # 样本类别集合
 
-    # 若数据集中所有实例属于同一类Ck，则为单节点树，并将Ck作为该节点的类标记
-    if classList.count(classList[0]) == len(classList):
-        return classList[0]
+    # 1.若样本集中所有实例属于同一类Ck,则为单节点树,并将Ck作为该节点的类标记
+    if data_label.count(data_label[0]) == len(data_label):
+        return data_label[0]
 
-    # 若特征集为空集，则为单节点树，并将数据集中实例数最大的类Ck作为该节点的类标记
+    # 2.若样本特征集为空集,则为单节点树,并将数据集中实例数最大的类Ck作为该节点的类标记
     if len(dataset[0:1]) == 0:
-        return majorityCnt(classList)
+        return majorityCnt(data_label)
 
     # dataset.drop(dropCol, axis=1, inplace=True)
-    print('特征集和类别:', dataset.columns.tolist())
-    bestFeature, bestInfoGain = chooseBestFeatureToSplit(dataset)
+
+    # 3.根据id3算法选择特征(样本集按特征划分后信息增益最大)
+    print("特征集和类别: ", dataset.columns.tolist())
+    bestFeature, bestInfoGain = gen_info_gain(dataset)
     print('bestFeture:', bestFeature)
 
     myTree = {bestFeature: {}}
@@ -329,7 +317,7 @@ def createTree(dataset, dropCol):
 
 if __name__ == "__main__":
     filename = "dataset.csv"
-    dataset = load_data(filename)
-    dropCol = []
-    id3_tree = createTree(data_set, dropCol)
+    data_set = load_data(filename)
+    drop_col = []
+    id3_tree = gen_id3_tree(data_set, drop_col)
     print(id3_tree)
