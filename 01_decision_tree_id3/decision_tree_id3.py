@@ -223,48 +223,56 @@ def calc_entropy(dataset):
     return info_ent
 
 
-def splitDataSet(dataset, axis, value):
-    '''
-    输入：数据集，所占列，选择值
-    输出：划分数据集
-    描述：按照给定特征划分数据集；选择所占列中等于选择值的项
-    '''
-    cols = dataset.columns.tolist()
-    axisFeat = dataset[axis].tolist()
-    # 更新数据集
-    retDataSet = pd.concat([dataset[featVec] for featVec in cols if featVec != axis], axis=1)
+# 根据特征和特征取值对样本集进行划分
+def split_dataset(dataset, axis, value):
+    cols = dataset.columns.tolist()         # 样本集的特征
+    axis_attr = dataset[axis].tolist()      # 待选择特征的取值
+
+    # 1.去掉待选择特征后的样本集
+    rest_dataset = pd.concat([dataset[item] for item in cols if item != axis], axis=1)
+
+    # 2.根据待选择特征取值,获得子集
     i = 0
-    dropIndex = []  # 删除项的索引集
-    for featVec in axisFeat:
-        if featVec != value:
-            dropIndex.append(i)
+    drop_idx = []  # 删除项的索引集
+    for axis_val in axis_attr:
+        if axis_val != value:
+            drop_idx.append(i)
             i += 1
         else:
             i += 1
-    newDataSet = retDataSet.drop(dropIndex)
-    return newDataSet.reset_index(drop=True)
+    new_dataset = rest_dataset.drop(drop_idx)
+    new_dataset.reset_index(drop=True)
+
+    return new_dataset
 
 
 # 计算样本集每个特征的信息增益
 def gen_info_gain(dataset):
-    attr_num = dataset.shape[1] - 1
-    info_ent = calc_entropy(dataset)
-    bestInfoGain = 0.0
-    bestFeature = -1
+    attr_num = dataset.shape[1] - 1     # 根节点特征数
+    info_ent = calc_entropy(dataset)    # 根节点信息熵
+    best_gain = 0.0
+    best_attr = -1
     cols = dataset.columns.tolist()
+
+    # 遍历样本集中的特征,计算信息增益
     for i in range(attr_num):
-        equalVals = set(dataset[cols[i]].tolist())
-        newEntropy = 0.0
-        for value in equalVals:
-            subDataSet = splitDataSet(dataset, cols[i], value)
-            prob = subDataSet.shape[0] / dataset.shape[0]
-            newEntropy += prob * calcShannonEnt(subDataSet)
-        infoGain = info_ent - newEntropy
-        print(cols[i], infoGain)
-        if infoGain > bestInfoGain:
-            bestInfoGain = infoGain
-            bestFeature = cols[i]
-    return bestFeature, bestInfoGain
+        attr_val = set(dataset[cols[i]].tolist())      # 样本集特征的取值
+        attr_ent = 0.0
+
+        # 对特征按取值划分子集,并计算信息增益
+        for value in attr_val:
+            sub_dataset = split_dataset(dataset, cols[i], value)    # 特征划分的子集
+            prob = sub_dataset.shape[0] / dataset.shape[0]          # 子集权重
+            attr_ent += prob * calc_entropy(sub_dataset)
+        info_gain = info_ent - attr_ent
+        print("%-20s%-30f" % (cols[i], info_gain))
+
+        # 保存信息增益最大的特征
+        if info_gain > best_gain:
+            best_gain = info_gain
+            best_attr = cols[i]
+
+    return best_attr, best_gain
 
 
 def majorityCnt(classList):
@@ -300,8 +308,8 @@ def gen_id3_tree(dataset, dropcol):
 
     # 3.根据id3算法选择特征(样本集按特征划分后信息增益最大)
     print("特征集和类别: ", dataset.columns.tolist())
-    bestFeature, bestInfoGain = gen_info_gain(dataset)
-    print('bestFeture:', bestFeature)
+    best_attr, best_gain = gen_info_gain(dataset)
+    print("Best attribute:", best_attr)
 
     myTree = {bestFeature: {}}
 
