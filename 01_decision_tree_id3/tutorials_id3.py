@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 """
-@file: decision_tree_id3.py
+@file: tutorials_id3.py
 """
 import pandas as pd
 from math import log2
