@@ -143,7 +143,7 @@ def gen_c45_tree(dataset, dropcol):
     best_attr, best_gain_ratio = gen_info_gain_ratio(dataset)
     print("Best attribute:", best_attr)
 
-    # 4.按照最优特征迭代生成id3 tree
+    # 4.按照最优特征迭代生成c4.5 tree
     new_tree = {best_attr: {}}
     attr_value = dataset[best_attr]
     uniq_value = set(attr_value)
