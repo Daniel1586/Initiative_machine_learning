@@ -105,7 +105,7 @@ def gen_info_gain_ratio(dataset):
         info_gain_ratio = info_gain/attr_intrinsic
         print("%-20s%-30f" % (cols[i], info_gain_ratio))
 
-        # 保存信息增益最大的特征
+        # 保存信息增益率最大的特征
         if info_gain_ratio > best_gain_ratio:
             best_gain_ratio = info_gain_ratio
             best_attr = cols[i]

@@ -6,6 +6,7 @@
 """
 import pandas as pd
 from math import log2
+from copy import deepcopy
 
 
 # 读取样本数据,最后1列为类别
@@ -15,8 +16,8 @@ def load_data(file):
     return dataset
 
 
-# 计算样本集信息熵
-def calc_entropy(dataset):
+# 计算样本集基尼指数
+def calc_gini(dataset):
     num_set = dataset.shape[0]
     num_labels = {}
     ncols = dataset.columns.tolist()
@@ -29,13 +30,13 @@ def calc_entropy(dataset):
         else:
             num_labels[item] += 1
 
-    # 计算信息熵
-    info_ent = 0.0
+    # 计算基尼指数
+    gini_idx = 1.0
     for key in num_labels:
         prob = num_labels[key]/num_set
-        info_ent -= prob*log2(prob)
+        gini_idx -= prob*prob
 
-    return info_ent
+    return gini_idx
 
 
 # 计算样本集特征的熵
@@ -60,7 +61,7 @@ def calc_attr_entropy(dataset, axis):
     return info_ent
 
 
-# 根据特征和特征取值对样本集进行划分
+# 根据特征和特征取值对样本集进行划分,二分类
 def split_dataset(dataset, axis, value):
     cols = dataset.columns.tolist()         # 样本集的特征
     axis_attr = dataset[axis].tolist()      # 待选择特征的取值
@@ -70,45 +71,51 @@ def split_dataset(dataset, axis, value):
 
     # 2.根据待选择特征取值,获得子集
     i = 0
-    drop_idx = []  # 删除项的索引集
+    drop_idx1 = []          # 等于value的索引值
+    drop_idx2 = []          # 不等于value的索引值
     for axis_val in axis_attr:
         if axis_val != value:
-            drop_idx.append(i)
+            drop_idx2.append(i)
             i += 1
         else:
+            drop_idx1.append(i)
             i += 1
-    new_dataset = rest_dataset.drop(rest_dataset.index[drop_idx])
+    new_dataset1 = rest_dataset.drop(rest_dataset.index[drop_idx2])
+    new_dataset2 = rest_dataset.drop(rest_dataset.index[drop_idx1])
 
-    return new_dataset
+    return new_dataset1, new_dataset2
 
 
-# 计算样本集每个特征的信息增益率
-def gen_info_gain_ratio(dataset):
+# 计算样本集每个特征的基尼指数
+def gen_gini_index(dataset):
     attr_num = dataset.shape[1] - 1     # 根节点特征数
-    info_ent = calc_entropy(dataset)    # 根节点信息熵
-    best_gain_ratio = 0.0
+    best_gini_index = 1.0
     best_attr = -1
     cols = dataset.columns.tolist()
 
-    # 遍历样本集中的特征,计算信息增益率
+    # 遍历样本集中的特征,计算基尼指数
+    attr_gini = 1.0
     for i in range(attr_num):
-        attr_ent = 0.0
         attr_val = set(dataset[cols[i]].tolist())               # 样本集特征的取值
-        attr_intrinsic = calc_attr_entropy(data_set, cols[i])   # 样本关于特征的熵
 
-        # 对特征按取值划分子集,并计算信息增益
+        # 对特征按取值划分子集(二分类),并计算基尼指数
         for value in attr_val:
-            sub_dataset = split_dataset(dataset, cols[i], value)    # 特征划分的子集
-            prob = sub_dataset.shape[0] / dataset.shape[0]          # 子集权重
-            attr_ent += prob * calc_entropy(sub_dataset)
+            attr_set = deepcopy(attr_val)
+            sub_dataset1, sub_dataset2 = split_dataset(dataset, cols[i], value)     # 特征划分的子集
+            prob1 = sub_dataset1.shape[0] / dataset.shape[0]                        # 子集权重
+            prob2 = sub_dataset2.shape[0] / dataset.shape[0]
+            attr_gini = prob1 * calc_gini(sub_dataset1) + prob2 * calc_gini(sub_dataset2)
+            attr_set.remove(value)
+
+            # 保存基尼指数最小的特征划分
+            if attr_gini < best_gini_index:
+                best_gini_index = attr_gini
+                best_attr = cols[i]
+                best_val = [value, attr_set]
+
         info_gain = info_ent - attr_ent
         info_gain_ratio = info_gain/attr_intrinsic
         print("%-20s%-30f" % (cols[i], info_gain_ratio))
-
-        # 保存信息增益最大的特征
-        if info_gain_ratio > best_gain_ratio:
-            best_gain_ratio = info_gain_ratio
-            best_attr = cols[i]
 
     return best_attr, best_gain_ratio
 
@@ -138,9 +145,9 @@ def gen_cart_tree(dataset, dropcol):
     if len(dataset[0:1]) == 0:
         return major_count(data_label)
 
-    # 3.根据cart算法选择特征(样本集按特征划分后信息增益率最大)
+    # 3.根据cart算法选择特征(样本集按特征划分后基尼指数最小)
     print("特征集和类别: ", dataset.columns.tolist())
-    best_attr, best_gain_ratio = gen_info_gain_ratio(dataset)
+    best_attr, best_gini = gen_gini_index(dataset)
     print("Best attribute:", best_attr)
 
     # 4.按照最优特征迭代生成cart tree
