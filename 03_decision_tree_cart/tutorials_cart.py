@@ -94,7 +94,6 @@ def gen_gini_index(dataset):
     cols = dataset.columns.tolist()
 
     # 遍历样本集中的特征,计算基尼指数
-    attr_gini = 1.0
     for i in range(attr_num):
         attr_val = set(dataset[cols[i]].tolist())               # 样本集特征的取值
 
@@ -106,18 +105,16 @@ def gen_gini_index(dataset):
             prob2 = sub_dataset2.shape[0] / dataset.shape[0]
             attr_gini = prob1 * calc_gini(sub_dataset1) + prob2 * calc_gini(sub_dataset2)
             attr_set.remove(value)
+            attr_str = init_str.join(attr_set)
 
             # 保存基尼指数最小的特征划分
             if attr_gini < best_gini_index:
                 best_gini_index = attr_gini
-                best_attr = cols[i]
-                best_val = [value, attr_set]
+                best_attr = [cols[i], value, attr_str]
 
-        info_gain = info_ent - attr_ent
-        info_gain_ratio = info_gain/attr_intrinsic
-        print("%-20s%-30f" % (cols[i], info_gain_ratio))
+            print("%-20s%-20s%-20s%-30f" % (cols[i], value, attr_str, attr_gini))
 
-    return best_attr, best_gain_ratio
+    return best_attr, best_gini_index
 
 
 # 样本特征集为空集,但类别标签不完全相同,划分为类别最多的类
@@ -151,13 +148,11 @@ def gen_cart_tree(dataset, dropcol):
     print("Best attribute:", best_attr)
 
     # 4.按照最优特征迭代生成cart tree
-    new_tree = {best_attr: {}}
-    attr_value = dataset[best_attr]
-    uniq_value = set(attr_value)
-    for value in uniq_value:
-        attr_set = split_dataset(dataset, best_attr, value)
-        attr_tre = gen_cart_tree(attr_set, best_attr)
-        new_tree[best_attr][value] = attr_tre
+    new_tree = {best_attr[0]: {}}
+    attr_set = split_dataset(dataset, best_attr[0], best_attr[1])
+    for i in range(2):
+        attr_tre = gen_cart_tree(attr_set[i], best_attr[0])
+        new_tree[best_attr[0]][best_attr[i+1]] = attr_tre
 
     return new_tree
 
