@@ -104,6 +104,8 @@ def gen_gini_index(dataset):
             prob1 = sub_dataset1.shape[0] / dataset.shape[0]                        # 子集权重
             prob2 = sub_dataset2.shape[0] / dataset.shape[0]
             attr_gini = prob1 * calc_gini(sub_dataset1) + prob2 * calc_gini(sub_dataset2)
+
+            init_str = "_"
             attr_set.remove(value)
             attr_str = init_str.join(attr_set)
 
