@@ -62,12 +62,43 @@ def calc_attr_entropy(dataset, axis):
 
 
 # 根据特征和特征取值对样本集进行划分,二分类
+# 划分后的样本不包含选取的划分特征
 def split_dataset(dataset, axis, value):
     cols = dataset.columns.tolist()         # 样本集的特征
-    axis_attr = dataset[axis].tolist()      # 待选择特征的取值
+    axis_attr = dataset[axis].tolist()      # 待选择特征的样本取值
 
     # 1.去掉待选择特征后的样本集
     rest_dataset = pd.concat([dataset[item] for item in cols if item != axis], axis=1)
+
+    # 2.根据待选择特征取值,获得子集
+    i = 0
+    drop_idx1 = []          # 等于value的索引值
+    drop_idx2 = []          # 不等于value的索引值
+    for axis_val in axis_attr:
+        if axis_val != value:
+            drop_idx2.append(i)
+            i += 1
+        else:
+            drop_idx1.append(i)
+            i += 1
+    new_dataset1 = rest_dataset.drop(rest_dataset.index[drop_idx2])
+    new_dataset2 = rest_dataset.drop(rest_dataset.index[drop_idx1])
+
+    return new_dataset1, new_dataset2
+
+
+# 根据特征和特征取值对样本集进行划分,二分类
+# 划分后的样本集包含选取的划分特征(选取特征取值大于2)
+def split_dataset_new(dataset, axis, value):
+    cols = dataset.columns.tolist()         # 样本集的特征
+    axis_attr = dataset[axis].tolist()      # 待选择特征的样本取值
+    axis_sets = set(axis_attr)
+
+    # 1.去掉待选择特征后的样本集
+    if len(axis_sets) > 2:
+        rest_dataset = dataset
+    else:
+        rest_dataset = pd.concat([dataset[item] for item in cols if item != axis], axis=1)
 
     # 2.根据待选择特征取值,获得子集
     i = 0
@@ -148,10 +179,11 @@ def gen_cart_tree(dataset, dropcol):
     print("特征集和类别: ", dataset.columns.tolist())
     best_attr, best_gini = gen_gini_index(dataset)
     print("Best attribute:", best_attr)
+    print("\n")
 
     # 4.按照最优特征迭代生成cart tree
     new_tree = {best_attr[0]: {}}
-    attr_set = split_dataset(dataset, best_attr[0], best_attr[1])
+    attr_set = split_dataset_new(dataset, best_attr[0], best_attr[1])
     for i in range(2):
         attr_tre = gen_cart_tree(attr_set[i], best_attr[0])
         new_tree[best_attr[0]][best_attr[i+1]] = attr_tre
