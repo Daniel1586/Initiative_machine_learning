@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 """
-@file: tutorials_cart.py
+@file: tutorials_naive_bayes.py
 """
 import pandas as pd
 from math import log2
