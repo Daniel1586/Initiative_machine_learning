@@ -1,8 +1,13 @@
-# Initiative_machine_learning
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/03_CART/CART_01.jpg) 
+Classification_naive_bayes
+=========================
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/03_CART/CART_02.jpg) 
+算法原理
+------------
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/03_CART/CART_03.jpg) 
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_01.jpg) 
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/03_CART/CART_04.jpg) 
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_02.jpg) 
+
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_02.jpg) 
+
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_02.jpg) 
