@@ -1,13 +1,11 @@
-Classification_naive_bayes
+Classification_bayesian_network
 =========================
 
 算法原理
 ------------
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_01.jpg) 
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/05_Bayesian_Network/BN_01.jpg) 
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_02.jpg) 
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/05_Bayesian_Network/BN_02.jpg) 
 
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_03.jpg) 
-
-![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/04_Naive_Bayes/NB_04.jpg) 
+![](https://github.com/Daniel1586/Initiative_machine_learning/raw/master/00_images/05_Bayesian_Network/BN_03.jpg) 
