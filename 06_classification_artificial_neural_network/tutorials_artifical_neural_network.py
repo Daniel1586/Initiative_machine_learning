@@ -4,122 +4,180 @@
 """
 @file: tutorials_naive_bayes.py
 """
+import random
 import numpy as np
 import pandas as pd
+import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
 
 
-# 读取样本数据,最后1列为类别
-def load_data(file):
-    dataset = pd.read_csv(file)
-
-    return dataset
-
-
-# 数据集划分训练集和测试集(当前设置测试集仅1个数据)
-# 返回数据类型为n维数组格式
-def split_dataset(dataset, test_size=1):
-    cols = dataset.columns.tolist()
-    data_idx = dataset.index.tolist()
-    test_idx = data_idx[-test_size:]
-    train_idx = [i for i in data_idx if i not in test_idx]
+# 读取MNIST样本数据
+def load_data():
+    print('1.Loading train/test/validation data...')
+    dataset = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
     # 计算训练集, 转化为n维数组格式
-    trainset = dataset.iloc[train_idx]
-    train_datas = trainset.values[:, 0:len(cols)-1]
-    train_label = trainset.values[:, -1:]
+    train_datas = dataset.train.images
+    train_label = dataset.train.labels
 
     # 计算测试集, 转化为n维数组格式
-    testset = dataset.iloc[test_idx]
-    test_datas = testset.values[:, 0:len(cols)-1]
-    test_label = testset.values[:, -1:]
+    test_datas = dataset.test.images
+    test_label = dataset.test.labels
 
     return train_datas, train_label, test_datas, test_label
 
 
 # 分类算法--朴素贝叶斯
-class NaiveBayes:
+class Network(object):
 
-    def __init__(self):
-        self.classes = None
-        self.x = None
-        self.y = None
-        self.paras = []    # 存储数据集中每个特征中每个特征值出现概率
+    def __init__(self, sizes):
+        """
+        :param sizes: list类型，储存每层神经网络的神经元数目
+                      譬如说：sizes = [2, 3, 2] 表示输入层有两个神经元、
+                      隐藏层有3个神经元以及输出层有2个神经元
+        """
+        # 有几层神经网络
+        self.num_layers = len(sizes)
+        self.sizes = sizes
+        # 除去输入层，随机产生每层中 y 个神经元的 biase 值（0 - 1）
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
+        # 随机产生每条连接线的 weight 值（0 - 1）
+        self.weights = [np.random.randn(y, x)
+                        for x, y in zip(sizes[:-1], sizes[1:])]
 
-    # 计算不同类别不同特征不同特征值的条件概率
-    def fit(self, x, y):
-        self.x = x
-        self.y = y
-        self.classes = np.unique(y)
+    def feedforward(self, a):
+        """
+        前向传输计算每个神经元的值
+        :param a: 输入值
+        :return: 计算后每个神经元的值
+        """
+        for b, w in zip(self.biases, self.weights):
+            # 加权求和以及加上 biase
+            a = sigmoid(np.dot(w, a) + b)
+        return a
 
-        # 遍历所有类别
-        for i in range(len(self.classes)):
-            c = self.classes[i]
-            c_idx = np.where(y == c)
-            c_set = x[c_idx[0]]
-            self.paras.append([])
+    def SGD(self, training_data, epochs, mini_batch_size, eta,
+            test_data=None):
+        """
+        随机梯度下降
+        :param training_data: 输入的训练集
+        :param epochs: 迭代次数
+        :param mini_batch_size: 小样本数量
+        :param eta: 学习率
+        :param test_data: 测试数据集
+        """
+        if test_data: n_test = len(test_data)
+        n = len(training_data)
+        for j in range(epochs):
+            # 搅乱训练集，让其排序顺序发生变化
+            random.shuffle(training_data)
+            # 按照小样本数量划分训练集
+            mini_batches = [
+                training_data[k:k+mini_batch_size]
+                for k in range(0, n, mini_batch_size)]
+            for mini_batch in mini_batches:
+                # 根据每个小样本来更新 w 和 b，代码在下一段
+                self.update_mini_batch(mini_batch, eta)
+            # 输出测试每轮结束后，神经网络的准确度
+            if test_data:
+                print("Epoch {0}: {1} / {2}".format(j, self.evaluate(test_data), n_test))
+            else:
+                print("Epoch {0} complete".format(j))
 
-            # 遍历相同类别不同特征
-            for j in range(c_set.shape[1]):
-                c_para = {}
-                c_attr = np.unique(c_set[:, j])
+    def update_mini_batch(self, mini_batch, eta):
+        """
+        更新 w 和 b 的值
+        :param mini_batch: 一部分的样本
+        :param eta: 学习率
+        """
+        # 根据 biases 和 weights 的行列数创建对应的全部元素值为 0 的空矩阵
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        for x, y in mini_batch:
+            # 根据样本中的每一个输入 x 的其输出 y，计算 w 和 b 的偏导数
+            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
+            # 累加储存偏导值 delta_nabla_b 和 delta_nabla_w
+            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+        # 更新根据累加的偏导值更新 w 和 b，这里因为用了小样本，
+        # 所以 eta 要除于小样本的长度
+        self.weights = [w-(eta/len(mini_batch))*nw
+                        for w, nw in zip(self.weights, nabla_w)]
+        self.biases = [b-(eta/len(mini_batch))*nb
+                       for b, nb in zip(self.biases, nabla_b)]
 
-                # 遍历相同特征不同特征值
-                for attr_value in c_attr:
-                    attr_value_num = c_set[c_set[:, j] == attr_value].shape[0]
-                    attr_value_pro = attr_value_num/c_set.shape[0]
-                    c_para[attr_value] = attr_value_pro
-                self.paras[i].append(c_para)
+    def backprop(self, x, y):
+        """
+        :param x:
+        :param y:
+        :return:
+        """
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        # 前向传输
+        activation = x
+        # 储存每层的神经元的值的矩阵，下面循环会 append 每层的神经元的值
+        activations = [x]
+        # 储存每个未经过 sigmoid 计算的神经元的值
+        zs = []
+        for b, w in zip(self.biases, self.weights):
+            z = np.dot(w, activation)+b
+            zs.append(z)
+            activation = sigmoid(z)
+            activations.append(activation)
+        # 求 δ 的值
+        delta = self.cost_derivative(activations[-1], y) * \
+            sigmoid_prime(zs[-1])
+        nabla_b[-1] = delta
+        # 乘于前一层的输出值
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        for l in range(2, self.num_layers):
+            # 从倒数第 **l** 层开始更新，**-l** 是 python 中特有的语法表示从倒数第 l 层开始计算
+            # 下面这里利用 **l+1** 层的 δ 值来计算 **l** 的 δ 值
+            z = zs[-l]
+            sp = sigmoid_prime(z)
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            nabla_b[-l] = delta
+            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+        return (nabla_b, nabla_w)
 
-    # 计算类别先验概率
-    def calc_prior_prob(self, c):
-        c_idx = np.where(self.y == c)
-        c_set = self.x[c_idx[0]]
-        prior = c_set.shape[0]/self.x.shape[0]
+    def evaluate(self, test_data):
+        # 获得预测结果
+        test_results = [(np.argmax(self.feedforward(x)), y)
+                        for (x, y) in test_data]
+        # 返回正确识别的个数
+        return sum(int(x == y) for (x, y) in test_results)
 
-        return prior
+    def cost_derivative(self, output_activations, y):
+        """
+        二次损失函数
+        :param output_activations:
+        :param y:
+        :return:
+        """
+        return (output_activations-y)
 
-    # 单个样本数据分类
-    def classify(self, sample):
-        posteriors = []
 
-        # 遍历所有类别,计算后验概率
-        for i in range(len(self.classes)):
-            c = self.classes[i]
-            prior = self.calc_prior_prob(c)
-            posterior = prior
+#### Miscellaneous functions
+def sigmoid(z):
+    """
+    求 sigmoid 函数的值
+    :param z:
+    :return:
+    """
+    return 1.0/(1.0+np.exp(-z))
 
-            # 遍历所有特征的特征值
-            for j, params in enumerate(self.paras[i]):
-                sample_attr = sample[j]     # 预测样本第j个特征的值
-                prob = params.get(sample_attr)
-                posterior *= prob
 
-            posteriors.append(posterior)
-
-        # 后验概率排序,找出最大后验概率
-        idx_of_max = np.argmax(posteriors)
-        max_value = posteriors[idx_of_max]
-        max_class = self.classes[idx_of_max]
-        print("The max posterior prob: ", max_value)
-        print("Classes by Naive Bayes: ", max_class)
-
-        return max_class
-
-    # 对数据集进行类别预测
-    def predict(self, x):
-        y_predict = []
-        for sample in x:
-            y = self.classify(sample)
-            y_predict.append(y)
-
-        return np.array(y_predict)
+def sigmoid_prime(z):
+    """
+    求 sigmoid 函数的导数
+    :param z:
+    :return:
+    """
+    return sigmoid(z)*(1-sigmoid(z))
 
 
 if __name__ == "__main__":
-    filename = "dataset.csv"
-    data_set = load_data(filename)
-    x_train, y_train, x_test, y_test = split_dataset(data_set, test_size=1)
-
-    clf = NaiveBayes()
-    clf.fit(x_train, y_train)
-    y_pred = clf.predict(x_test)
+    data_set = load_data()
+    print(0)
+    # x_train, y_train, x_test, y_test = split_dataset(data_set, test_size=1)
