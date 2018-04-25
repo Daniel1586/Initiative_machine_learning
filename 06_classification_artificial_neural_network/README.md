@@ -1,4 +1,4 @@
-Classification_artifical_neural_network
+Classification_artificial_neural_network
 =========================
 
 算法原理
