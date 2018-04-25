@@ -4,6 +4,8 @@
 """
 @file: tutorials_naive_bayes.py
 """
+import os
+import sys
 import random
 import numpy as np
 import pandas as pd
@@ -11,24 +13,31 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 
-# 读取MNIST样本数据
+# 读取MNIST数据集
 def load_data():
-    print('1.Loading train/test/validation data...')
-    dataset = input_data.read_data_sets("MNIST_data/", one_hot=True)
+    # 获取当前.py文件的绝对路径和文件名
+    dir_path, file_name = os.path.split(os.path.abspath(sys.argv[0]))
 
-    # 计算训练集, 转化为n维数组格式
+    # 获取当前文件夹的上级目录
+    par_path = os.path.dirname(dir_path)
+
+    # 获取MNIST数据集的地址
+    datapath = par_path + "\\00_data_set" + "\\MNIST_data"
+
+    # 加载MNIST数据集,并提取train/test数据
+    print('1.Loading data set...')
+    dataset = input_data.read_data_sets(datapath, one_hot=True)
+
     train_datas = dataset.train.images
     train_label = dataset.train.labels
-
-    # 计算测试集, 转化为n维数组格式
     test_datas = dataset.test.images
     test_label = dataset.test.labels
 
     return train_datas, train_label, test_datas, test_label
 
 
-# 分类算法--朴素贝叶斯
-class Network(object):
+# 分类算法--人工神经网络
+class Ann(object):
 
     def __init__(self, sizes):
         """
@@ -158,7 +167,6 @@ class Network(object):
         return (output_activations-y)
 
 
-#### Miscellaneous functions
 def sigmoid(z):
     """
     求 sigmoid 函数的值
@@ -178,6 +186,8 @@ def sigmoid_prime(z):
 
 
 if __name__ == "__main__":
-    data_set = load_data()
+    x_train, y_train, x_test, y_test = load_data()
+
+    ann_net = Ann([784, 30, 10])
+    ann_net.SGD(x_train, 30, 10, 3.0, test_data=x_test)
     print(0)
-    # x_train, y_train, x_test, y_test = split_dataset(data_set, test_size=1)
