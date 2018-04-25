@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 """
-@file: tutorials_naive_bayes.py
+@file: tutorials_artificial_neural_network.py
 """
 import os
 import sys
@@ -141,12 +141,14 @@ class Ann(object):
         return num
 
 
+# 激活函数--sigmoid
 def sigmoid(z):
     z_res = 1.0/(1.0+np.exp(-z))
 
     return z_res
 
 
+# 激活函数的导数
 def sigmoid_prime(z):
     z_derivative = sigmoid(z) * (1-sigmoid(z))
 
