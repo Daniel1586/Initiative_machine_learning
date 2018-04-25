@@ -6,10 +6,7 @@
 """
 import os
 import sys
-import random
 import numpy as np
-import pandas as pd
-import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 
@@ -61,11 +58,9 @@ class Ann(object):
         :param epochs: 迭代次数
         :param mini_batch_size: mini_batch样本个数
         :param rate: 学习率
-        :param test_data: 测试数据集
         """
         num = len(datas)
         for j in range(epochs):
-            print('***** Epoch num:', j)
             # 随机打散训练集的排序
             shuffle_idx = np.random.permutation(num)
             shuffle_x = datas[shuffle_idx, :]
@@ -76,6 +71,9 @@ class Ann(object):
                 batch_xs = shuffle_x[k:k+mini_batch_size]
                 batch_ys = shuffle_y[k:k+mini_batch_size]
                 self.update_mini_batch(batch_xs, batch_ys, rate)
+
+            # 每轮训练后,神经网络的预测准确率
+            print("***** Epoch {0}:  {1}/{2}".format(j, self.evaluate(datas, label), num))
 
     # mini_batch更新参数w和b
     def update_mini_batch(self, batch_xs, batch_ys, rate):
@@ -131,16 +129,16 @@ class Ann(object):
 
     # 测试样本结果
     def evaluate(self, test_xs, test_ys):
-        pred_z, pred_a = self.feed_forward(test_xs)
-
+        tmp_z, tmp_a = self.feed_forward(test_xs)
+        pred_a = tmp_a[-1].transpose()
         num = 0
-        for x, y in zip(pred_a[-1], test_ys):
-            if x == y:
+        for x, y in zip(pred_a, test_ys):
+            x_idx = np.where(x == np.max(x))
+            y_idx = np.where(y == np.max(y))
+            if x_idx == y_idx:
                 num += 1
 
-        accuracy = num/test_ys.shape[0]
-
-        return accuracy
+        return num
 
 
 def sigmoid(z):
@@ -166,5 +164,6 @@ if __name__ == "__main__":
     ann_net.GradientDescentOpt(x_train, y_train, 30, 100, 3.0)
     
     # 测试样本结果
-    acc = ann_net.evaluate(x_test, y_test)
-    print('分类正确率:', acc)
+    acc_num = ann_net.evaluate(x_test, y_test)
+    accuracy = acc_num/y_test.shape[0]
+    print('测试样本分类准确率:', accuracy)
