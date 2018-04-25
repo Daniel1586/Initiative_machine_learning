@@ -38,156 +38,133 @@ def load_data():
 
 # 分类算法--人工神经网络
 class Ann(object):
-
+    # 人工神经网络初始化
     def __init__(self, sizes):
         """
-        :param sizes: list类型，储存每层神经网络的神经元数目
-                      譬如说：sizes = [2, 3, 2] 表示输入层有两个神经元、
-                      隐藏层有3个神经元以及输出层有2个神经元
+        :param sizes: list类型,储存每层神经网络的神经元数目; 假如sizes=[2,3,2]
+                      表示输入层有2个神经元/隐藏层有3个神经元/输出层有2个神经元
         """
-        # 有几层神经网络
         self.num_layers = len(sizes)
         self.sizes = sizes
-        # 除去输入层，随机产生每层中 y 个神经元的 biase 值（0 - 1）
+
+        # 生成隐藏层和输出层的biases,维度为(n[l],1)(n(l)为第l层的神经元个数),取数范围:正态分布的随机样本数
         self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        # 随机产生每条连接线的 weight 值（0 - 1）
-        self.weights = [np.random.randn(y, x)
-                        for x, y in zip(sizes[:-1], sizes[1:])]
 
-    def feedforward(self, a):
-        """
-        前向传输计算每个神经元的值
-        :param a: 输入值
-        :return: 计算后每个神经元的值
-        """
-        for b, w in zip(self.biases, self.weights):
-            # 加权求和以及加上 biase
-            a = sigmoid(np.dot(w, a) + b)
-        return a
+        # 生成隐藏层和输出层的weight,维度为(n(l),n(l-1)),取数范围:正态分布的随机样本数
+        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
-            test_data=None):
+    # 梯度下降算法迭代训练人工神经网络
+    def GradientDescentOpt(self, datas, label, epochs, mini_batch_size, rate):
         """
-        随机梯度下降
-        :param training_data: 输入的训练集
+        :param datas: 输入的训练数据
+        :param label: 输入的数据标签
         :param epochs: 迭代次数
-        :param mini_batch_size: 小样本数量
-        :param eta: 学习率
+        :param mini_batch_size: mini_batch样本个数
+        :param rate: 学习率
         :param test_data: 测试数据集
         """
-        if test_data: n_test = len(test_data)
-        n = len(training_data)
+        num = len(datas)
         for j in range(epochs):
-            # 搅乱训练集，让其排序顺序发生变化
-            random.shuffle(training_data)
-            # 按照小样本数量划分训练集
-            mini_batches = [
-                training_data[k:k+mini_batch_size]
-                for k in range(0, n, mini_batch_size)]
-            for mini_batch in mini_batches:
-                # 根据每个小样本来更新 w 和 b，代码在下一段
-                self.update_mini_batch(mini_batch, eta)
-            # 输出测试每轮结束后，神经网络的准确度
-            if test_data:
-                print("Epoch {0}: {1} / {2}".format(j, self.evaluate(test_data), n_test))
+            print('***** Epoch num:', j)
+            # 随机打散训练集的排序
+            shuffle_idx = np.random.permutation(num)
+            shuffle_x = datas[shuffle_idx, :]
+            shuffle_y = label[shuffle_idx, :]
+
+            # 将训练集划分若干mini_batches,每个mini_batch进行神经网络训练
+            for k in range(0, num, mini_batch_size):
+                batch_xs = shuffle_x[k:k+mini_batch_size]
+                batch_ys = shuffle_y[k:k+mini_batch_size]
+                self.update_mini_batch(batch_xs, batch_ys, rate)
+
+    # mini_batch更新参数w和b
+    def update_mini_batch(self, batch_xs, batch_ys, rate):
+        """
+        :param batch_xs: mini_batch训练数据
+        :param batch_ys: mini_batch数据标签
+        :param rate: 学习率
+        """
+
+        # 前向计算输出
+        z, a = self.feed_forward(batch_xs)
+
+        # 后向计算梯度
+        dw, db = self.back_prop(batch_xs, batch_ys, z, a)
+
+        # 更新参数w和b
+        self.weights = [w-rate*nw for w, nw in zip(self.weights, dw)]
+        self.biases = [b-rate*nb for b, nb in zip(self.biases, db)]
+
+    # 前向计算输出
+    def feed_forward(self, batch_xs):
+        z = [batch_xs.transpose()]
+        a = [batch_xs.transpose()]
+        for i in range(self.num_layers-1):
+            w = self.weights[i]
+            b = self.biases[i]
+            z_i = np.dot(w, a[i]) + b
+            a_i = sigmoid(z_i)
+            z.append(z_i)
+            a.append(a_i)
+
+        return z, a
+
+    # 后向计算梯度
+    def back_prop(self, x, y, z, a):
+
+        dz = [np.zeros(s.shape) for s in z]
+        dw = [np.zeros(w.shape) for w in self.weights]
+        db = [np.zeros(b.shape) for b in self.biases]
+        idx = list(range(self.num_layers-1))
+        for i in reversed(idx):
+            if i == idx[-1]:
+                dz[i+1] = a[i+1] - y.transpose()
             else:
-                print("Epoch {0} complete".format(j))
+                tmp0 = np.dot(self.weights[i+1].transpose(), dz[i+2])
+                tmp1 = sigmoid_prime(z[i+1])
+                dz[i+1] = np.multiply(tmp0, tmp1)
 
-    def update_mini_batch(self, mini_batch, eta):
-        """
-        更新 w 和 b 的值
-        :param mini_batch: 一部分的样本
-        :param eta: 学习率
-        """
-        # 根据 biases 和 weights 的行列数创建对应的全部元素值为 0 的空矩阵
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
-        for x, y in mini_batch:
-            # 根据样本中的每一个输入 x 的其输出 y，计算 w 和 b 的偏导数
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            # 累加储存偏导值 delta_nabla_b 和 delta_nabla_w
-            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
-        # 更新根据累加的偏导值更新 w 和 b，这里因为用了小样本，
-        # 所以 eta 要除于小样本的长度
-        self.weights = [w-(eta/len(mini_batch))*nw
-                        for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b-(eta/len(mini_batch))*nb
-                       for b, nb in zip(self.biases, nabla_b)]
+            dw[i] = np.dot(dz[i+1], a[i].transpose())/x.shape[0]
+            db[i] = np.sum(dz[i+1], axis=1, keepdims=True)/x.shape[0]
 
-    def backprop(self, x, y):
-        """
-        :param x:
-        :param y:
-        :return:
-        """
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
-        # 前向传输
-        activation = x
-        # 储存每层的神经元的值的矩阵，下面循环会 append 每层的神经元的值
-        activations = [x]
-        # 储存每个未经过 sigmoid 计算的神经元的值
-        zs = []
-        for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
-            zs.append(z)
-            activation = sigmoid(z)
-            activations.append(activation)
-        # 求 δ 的值
-        delta = self.cost_derivative(activations[-1], y) * \
-            sigmoid_prime(zs[-1])
-        nabla_b[-1] = delta
-        # 乘于前一层的输出值
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
-        for l in range(2, self.num_layers):
-            # 从倒数第 **l** 层开始更新，**-l** 是 python 中特有的语法表示从倒数第 l 层开始计算
-            # 下面这里利用 **l+1** 层的 δ 值来计算 **l** 的 δ 值
-            z = zs[-l]
-            sp = sigmoid_prime(z)
-            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
-            nabla_b[-l] = delta
-            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        return (nabla_b, nabla_w)
+        return dw, db
 
-    def evaluate(self, test_data):
-        # 获得预测结果
-        test_results = [(np.argmax(self.feedforward(x)), y)
-                        for (x, y) in test_data]
-        # 返回正确识别的个数
-        return sum(int(x == y) for (x, y) in test_results)
+    # 测试样本结果
+    def evaluate(self, test_xs, test_ys):
+        pred_z, pred_a = self.feed_forward(test_xs)
 
-    def cost_derivative(self, output_activations, y):
-        """
-        二次损失函数
-        :param output_activations:
-        :param y:
-        :return:
-        """
-        return (output_activations-y)
+        num = 0
+        for x, y in zip(pred_a[-1], test_ys):
+            if x == y:
+                num += 1
+
+        accuracy = num/test_ys.shape[0]
+
+        return accuracy
 
 
 def sigmoid(z):
-    """
-    求 sigmoid 函数的值
-    :param z:
-    :return:
-    """
-    return 1.0/(1.0+np.exp(-z))
+    z_res = 1.0/(1.0+np.exp(-z))
+
+    return z_res
 
 
 def sigmoid_prime(z):
-    """
-    求 sigmoid 函数的导数
-    :param z:
-    :return:
-    """
-    return sigmoid(z)*(1-sigmoid(z))
+    z_derivative = sigmoid(z) * (1-sigmoid(z))
+
+    return z_derivative
 
 
 if __name__ == "__main__":
     x_train, y_train, x_test, y_test = load_data()
 
+    # 初始化人工神经网络
     ann_net = Ann([784, 30, 10])
-    ann_net.SGD(x_train, 30, 10, 3.0, test_data=x_test)
-    print(0)
+
+    # 人工神经网络训练和预测
+    print('开始训练神经网络......')
+    ann_net.GradientDescentOpt(x_train, y_train, 30, 100, 3.0)
+    
+    # 测试样本结果
+    acc = ann_net.evaluate(x_test, y_test)
+    print('分类正确率:', acc)
