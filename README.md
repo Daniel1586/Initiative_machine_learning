@@ -23,3 +23,5 @@ Initiative_machine_learning是一个基于python语言开发的项目. 它是一
 * [05.分类算法BayesianNetwork](https://github.com/Daniel1586/Initiative_machine_learning/tree/master/05_classification_bayesian_network)
 
   贝叶斯网络代码待完善......
+  
+* [06.分类算法ArtificialNeuralNetwork](https://github.com/Daniel1586/Initiative_machine_learning/tree/master/06_classification_artificial_neural_network)
