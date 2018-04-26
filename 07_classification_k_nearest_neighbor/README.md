@@ -12,4 +12,4 @@ Classification_k_nearest_neighbor
 
 Reference
 ------------
-* [](http://www.58maisui.com/2016/06/15/a-197/?ref=myread)
+* [从零开始：用Python实现KNN算法](http://www.58maisui.com/2016/06/15/a-197/?ref=myread)
